@@ -1,0 +1,163 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   Int              @id @default(autoincrement())
+  name                 String           @unique
+  email                String           @unique
+  password             String
+  weight               Float?
+  height               Float?
+  age                  Int?
+  gender               String?
+  dailyCalories        Int?             @default(2000)
+  fitnessGoal          String?          @default("MAINTAIN")
+  activityLevel        String?          @default("MODERATE")
+  workoutDaysPerWeek   Int?             @default(4) // Number of workout days per week
+  workoutDuration      Int?             @default(30) // Workout time per session in minutes
+  workoutLocation      String?          @default("HOME") // "HOME", "GYM", "OUTDOOR"
+  availableEquipment   String[] // Equipment available to the user
+  dietaryPreferences   String[]
+  allergies            String[]
+  weightGoal           String?
+  numberOfMeals        Int?
+  injuryHistory        String?
+  mobilityIssues       String? // Flexibility or mobility limitations
+  preferredWorkoutTime String? // "MORNING", "AFTERNOON", "EVENING"
+  sleepHours           Int? // Number of hours of sleep per night
+  hydrationLevel       Int? // Average water intake in liters
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  schedules            Schedule[]
+  progress             ProgressRecord[]
+  workout              Workout[]
+  bookmark             Bookmark[]
+  nutrition            NutritionLog[]
+  mealsuggestion       MealSuggestion[]
+  exercise             Exercise[]
+  workoutPlan          WorkoutPlan[]
+  dietplan             DietPlan[]
+}
+
+model WorkoutPlan {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  plan      Json
+  createdAt DateTime @default(now())
+}
+
+model DietPlan {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  fitnessGoal String
+  dietDetails String   @db.Text
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model NutritionLog {
+  id       Int      @id @default(autoincrement())
+  date     DateTime
+  calories Int
+  protein  Int
+  carbs    Int
+  fat      Int
+  userId   Int
+  user     User     @relation(fields: [userId], references: [id])
+}
+
+model MealSuggestion {
+  id          Int     @id @default(autoincrement())
+  userId      Int
+  name        String
+  description String
+  calories    Int
+  protein     Int
+  carbs       Int
+  fat         Int
+  imageUrl    String?
+  user        User    @relation(fields: [userId], references: [id])
+}
+
+model chatMessage {
+  id        String   @id @default(cuid())
+  role      String
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model Workout {
+  id             Int        @id @default(autoincrement())
+  title          String
+  description    String
+  duration       String
+  difficulty     String
+  goals          String
+  body           String
+  userId         Int
+  User           User       @relation(fields: [userId], references: [id])
+  bookmark       Bookmark[]
+  date           DateTime   @default(now())
+  startTimeStamp DateTime   @default(now())
+  endTimeStamp   DateTime   @default(now())
+  timeSpent      Int        @default(0)
+  reps           Int        @default(0)
+}
+
+model Exercise {
+  id       Int      @id @default(autoincrement())
+  name     String
+  sets     Int?
+  reps     Int?
+  weight   Float?
+  calories Float?
+  duration String   @default("00:00")
+  userId   Int
+  user     User     @relation(fields: [userId], references: [id])
+  date     DateTime @default(now()) // Ensure you have a date field to track when the exercise was logged
+}
+
+model Bookmark {
+  id        Int      @id @default(autoincrement())
+  workoutId Int
+  Workout   Workout  @relation(fields: [workoutId], references: [id])
+  userId    Int
+  User      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, workoutId]) // Composite unique key
+}
+
+model ProgressRecord {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  date      DateTime
+  weight    Float
+  calories  Int
+  steps     Int
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Schedule {
+  id       Int    @id @default(autoincrement())
+  userId   Int
+  user     User   @relation(fields: [userId], references: [id])
+  day      String
+  activity String
+  duration Int
+}
