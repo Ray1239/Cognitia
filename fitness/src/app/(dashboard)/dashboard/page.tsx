@@ -1,16 +1,14 @@
-"use client";
+"use client"
 
-import React, { useEffect, useState } from 'react';
-import { useSession } from "next-auth/react";
+import React, { useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   Activity,
   Clock,
   Dumbbell,
-  User,
   Calendar,
   TrendingUp,
   ChevronRight,
-  Heart,
   Award,
   BarChart4,
   Flame,
@@ -25,175 +23,233 @@ import {
   PlusCircle,
   Info,
   ChevronDown,
-  MoreHorizontal,
-  ArrowUpRight
-} from 'lucide-react';
+} from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { motion, AnimatePresence } from "framer-motion"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from "@/components/ui/card";
-import { motion, AnimatePresence } from 'framer-motion';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell, Legend, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+} from "recharts"
+import { useSession } from "next-auth/react"
+import axios from "axios"
+import BMIGauge from "@/components/Bmi"
+import FoodAnalyzerGemini from "@/components/NutritionTrack"
+import CalorieCard, { CalorieEntry } from '@/components/CalorieCard';
+import MealSuggestions from "@/components/MealSuggestions"
+import WorkoutScheduler from "@/components/WorkoutScheduler"
 
-import axios from 'axios';
-import BMIGauge from '@/components/Bmi';
+
 // Types
 interface Exercise {
-  name: string;
-  sets: number;
-  reps: number;
-  rest: number;
-  duration?: number;
-  muscle?: string; // Added muscle group
+  name: string
+  sets: number
+  reps: number
+  rest: number
+  duration?: number
+  muscle?: string // Added muscle group
 }
 
 interface WorkoutPlan {
-  day: string;
-  name: string;
-  exercises: Exercise[];
-  quote: string;
+  day: string
+  name: string
+  exercises: Exercise[]
+  quote: string
 }
 
 interface UserData {
   data: {
     user: {
-      name: string;
-      weight: number;
-      height: number;
-      age: number;
-      dailyCalories: number;
-      fitnessGoal: string;
-      activityLevel: string;
-    };
-    workoutPlan: WorkoutPlan[];
+      name: string
+      weight: number
+      height: number
+      age: number
+      dailyCalories: number
+      fitnessGoal: string
+      activityLevel: string
+    }
+    workoutPlan: WorkoutPlan[]
   }
-  success: boolean;
-  message: string;
+  success: boolean
+  message: string
 }
 
 // Mock data for visualization
 const mockProgressData = [
-  { date: 'Week 1', weight: 75, calories: 2500, steps: 8000 },
-  { date: 'Week 2', weight: 74.5, calories: 2400, steps: 8500 },
-  { date: 'Week 3', weight: 73.8, calories: 2350, steps: 9000 },
-  { date: 'Week 4', weight: 73.2, calories: 2300, steps: 9500 },
-  { date: 'Week 5', weight: 72.8, calories: 2250, steps: 10000 },
-];
+  { date: "Week 1", weight: 75, calories: 2500, steps: 8000 },
+  { date: "Week 2", weight: 74.5, calories: 2400, steps: 8500 },
+  { date: "Week 3", weight: 73.8, calories: 2350, steps: 9000 },
+  { date: "Week 4", weight: 73.2, calories: 2300, steps: 9500 },
+  { date: "Week 5", weight: 72.8, calories: 2250, steps: 10000 },
+]
 
 const mockNutritionData = [
-  { name: 'Protein', value: 30 },
-  { name: 'Carbs', value: 45 },
-  { name: 'Fats', value: 25 },
-];
+  { name: "Protein", value: 30 },
+  { name: "Carbs", value: 45 },
+  { name: "Fats", value: 25 },
+]
 
 const mockMuscleGroupData = [
-  { muscle: 'Chest', workouts: 8 },
-  { muscle: 'Back', workouts: 7 },
-  { muscle: 'Legs', workouts: 9 },
-  { muscle: 'Arms', workouts: 6 },
-  { muscle: 'Shoulders', workouts: 5 },
-  { muscle: 'Core', workouts: 10 },
-];
+  { muscle: "Chest", workouts: 8 },
+  { muscle: "Back", workouts: 7 },
+  { muscle: "Legs", workouts: 9 },
+  { muscle: "Arms", workouts: 6 },
+  { muscle: "Shoulders", workouts: 5 },
+  { muscle: "Core", workouts: 10 },
+]
 
 const mockHydrationData = [
-  { day: 'Mon', amount: 2.1 },
-  { day: 'Tue', amount: 2.5 },
-  { day: 'Wed', amount: 1.9 },
-  { day: 'Thu', amount: 2.8 },
-  { day: 'Fri', amount: 2.3 },
-  { day: 'Sat', amount: 1.7 },
-  { day: 'Sun', amount: 2.0 },
-];
+  { day: "Mon", amount: 2.1 },
+  { day: "Tue", amount: 2.5 },
+  { day: "Wed", amount: 1.9 },
+  { day: "Thu", amount: 2.8 },
+  { day: "Fri", amount: 2.3 },
+  { day: "Sat", amount: 1.7 },
+  { day: "Sun", amount: 2.0 },
+]
 
 const mockMilestones = [
-  { id: 1, title: 'Lost 5kg', completed: true, date: '2024-03-15' },
-  { id: 2, title: 'Completed 30 days workout streak', completed: true, date: '2024-03-30' },
-  { id: 3, title: 'Bench press personal record', completed: false, target: '80kg' },
-  { id: 4, title: 'Reduced body fat to 15%', completed: false, target: '15%' },
-];
+  { id: 1, title: "Lost 5kg", completed: true, date: "2024-03-15" },
+  { id: 2, title: "Completed 30 days workout streak", completed: true, date: "2024-03-30" },
+  { id: 3, title: "Bench press personal record", completed: false, target: "80kg" },
+  { id: 4, title: "Reduced body fat to 15%", completed: false, target: "15%" },
+]
 
 const mockUpcomingWorkouts = [
-  { id: 1, title: 'HIIT Session', time: '07:00 AM', duration: '45 min', type: 'Cardio' },
-  { id: 2, title: 'Yoga', time: '06:00 PM', duration: '60 min', type: 'Flexibility' },
-];
+  { id: 1, title: "HIIT Session", time: "07:00 AM", duration: "45 min", type: "Cardio" },
+  { id: 2, title: "Yoga", time: "06:00 PM", duration: "60 min", type: "Flexibility" },
+]
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"]
+
+interface DashboardProps {
+  activeTab?: string
+}
 
 const Dashboard = () => {
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [activeTab, setActiveTab] = useState('overview');
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
-  const { data: session } = useSession();
-  const [isLoading, setIsLoading] = useState(true);
-  const [waterIntake, setWaterIntake] = useState(0);
-  const [showNotification, setShowNotification] = useState(false);
-  const [expandedExercise, setExpandedExercise] = useState<number | null>(null);
+  const router = useRouter()
+  const [userData, setUserData] = useState<UserData | null>(null)
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  const { data: session } = useSession()
+  const [isLoading, setIsLoading] = useState(true)
+  const [waterIntake, setWaterIntake] = useState(0)
+  const [showNotification, setShowNotification] = useState(false)
+  const [expandedExercise, setExpandedExercise] = useState<number | null>(null)
+
+  // Get the active tab from URL query parameters
+  const searchParams = useSearchParams()
+  const activeTab = searchParams.get("tab") || "overview"
+
+  // const handleCalorieUpdate = (entry) => {
+  //   // This function is defined inside CalorieTrackingCard
+  //   // We're just passing it through to FoodAnalyzerGemini
+  //   calorieTrackingRef.current?.handleCalorieUpdate(entry);
+  // };
+  // const calorieTrackingRef = React.useRef(null);
+
 
   useEffect(() => {
     if (session?.user?.email) {
       const fetchUserData = async () => {
-        setIsLoading(true);
+        setIsLoading(true)
         try {
-          const response = await axios.get("api/user");
+          const response = await axios.get("api/user")
           if (response.status === 200) {
-            setUserData(response.data);
+            setUserData(response.data)
             if (response.data.data.workoutPlan.length > 0) {
-              setSelectedDay(response.data.data.workoutPlan[0].day);
+              setSelectedDay(response.data.data.workoutPlan[0].day)
             }
           } else {
-            console.error(response.data);
+            console.error(response.data)
           }
         } catch (error) {
-          console.error('Error fetching user data:', error);
+          console.error("Error fetching user data:", error)
         } finally {
-          setIsLoading(false);
+          setIsLoading(false)
         }
       }
-      fetchUserData();
+      fetchUserData()
     }
-  }, [session]);
+  }, [session])
 
   useEffect(() => {
     // Show notification after component mounts
     const timer = setTimeout(() => {
-      setShowNotification(true);
-    }, 3000);
+      setShowNotification(true)
+    }, 3000)
 
-    return () => clearTimeout(timer);
-  }, []);
+    return () => clearTimeout(timer)
+  }, [])
+
+  const handleCalorieUpdate = (entry: CalorieEntry) => {
+    // Get existing entries from localStorage
+    const storedData = localStorage.getItem('calorieEntries');
+    let entries: CalorieEntry[] = storedData ? JSON.parse(storedData) : [];
+
+    // Check if entry for this date already exists
+    const existingEntryIndex = entries.findIndex(item => item.date === entry.date);
+
+    if (existingEntryIndex >= 0) {
+      // Update existing entry
+      entries[existingEntryIndex].calories += entry.calories;
+    } else {
+      // Add new entry
+      entries.push(entry);
+    }
+
+    // Sort by date
+    entries.sort((a, b) => {
+      return new Date(a.date).getTime() - new Date(b.date).getTime();
+    });
+
+    // Save to localStorage
+    localStorage.setItem('calorieEntries', JSON.stringify(entries));
+
+    // If you need to trigger a re-render or update in other components
+    // You can dispatch a custom event or use context/redux
+    window.dispatchEvent(new CustomEvent('calorie-data-updated'));
+  };
 
   // Get today's workout if available
   const getTodayWorkout = () => {
-    if (!userData?.data?.workoutPlan) return null;
-    const today = new Date().getDay();
-    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const todayString = days[today];
-    return userData.data.workoutPlan.find(workout =>
-      workout.day.toLowerCase() === todayString.toLowerCase()
-    );
-  };
+    if (!userData?.data?.workoutPlan) return null
+    const today = new Date().getDay()
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    const todayString = days[today]
+    return userData.data.workoutPlan.find((workout) => workout.day.toLowerCase() === todayString.toLowerCase())
+  }
 
-  const todaysWorkout = getTodayWorkout();
+  const todaysWorkout = getTodayWorkout()
 
   const addWater = () => {
-    setWaterIntake(prev => Math.min(prev + 0.25, 3));
+    setWaterIntake((prev) => Math.min(prev + 0.25, 3))
     // Show notification
-    setShowNotification(true);
-    setTimeout(() => setShowNotification(false), 3000);
-  };
+    setShowNotification(true)
+    setTimeout(() => setShowNotification(false), 3000)
+  }
 
   // Card Component with animations
   const StatsCard = ({ title, value, unit, icon, description, color }: any) => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      <Card className="w-full overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-l-4" style={{ borderLeftColor: color }}>
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+      <Card
+        className="w-full overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-l-4"
+        style={{ borderLeftColor: color }}
+      >
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium text-gray-600">{title}</CardTitle>
           <motion.div
@@ -212,88 +268,82 @@ const Dashboard = () => {
         </CardContent>
       </Card>
     </motion.div>
-  );
+  )
 
   // Redesigned Workout Card with Framer Motion
-  const WorkoutCard = ({ workout, isActive, onClick, index }: { workout: WorkoutPlan, isActive: boolean, onClick: () => void, index: number }) => (
+  const WorkoutCard = ({
+    workout,
+    isActive,
+    onClick,
+    index,
+  }: { workout: WorkoutPlan; isActive: boolean; onClick: () => void; index: number }) => (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.3, delay: index * 0.1 }}
     >
       <motion.div
-        className={`mb-3 rounded-xl overflow-hidden shadow-sm transition-all duration-300 border ${isActive ? 'border-indigo-500' : 'border-gray-200'
+        className={`mb-3 rounded-xl overflow-hidden shadow-sm transition-all duration-300 border ${isActive ? "border-indigo-500" : "border-gray-200"
           }`}
         whileHover={{ scale: 1.02 }}
         onClick={onClick}
       >
-        <div className={`h-2 ${isActive ? 'bg-indigo-500' : 'bg-gray-200'}`}></div>
-        <div className={`p-4 ${isActive ? 'bg-indigo-50' : 'bg-white'} cursor-pointer`}>
+        <div className={`h-2 ${isActive ? "bg-indigo-500" : "bg-gray-200"}`}></div>
+        <div className={`p-4 ${isActive ? "bg-indigo-50" : "bg-white"} cursor-pointer`}>
           <div className="flex justify-between items-center">
             <div>
-              <h3 className={`font-semibold ${isActive ? 'text-indigo-700' : 'text-gray-700'}`}>
-                {workout.day}
-              </h3>
+              <h3 className={`font-semibold ${isActive ? "text-indigo-700" : "text-gray-700"}`}>{workout.day}</h3>
               <div className="flex items-center mt-1">
-                <Dumbbell className={`h-4 w-4 mr-1 ${isActive ? 'text-indigo-500' : 'text-gray-400'}`} />
-                <p className={`text-sm ${isActive ? 'text-indigo-600' : 'text-gray-500'}`}>
-                  {workout.name}
-                </p>
+                <Dumbbell className={`h-4 w-4 mr-1 ${isActive ? "text-indigo-500" : "text-gray-400"}`} />
+                <p className={`text-sm ${isActive ? "text-indigo-600" : "text-gray-500"}`}>{workout.name}</p>
               </div>
               <div className="mt-2">
-                <span className={`text-xs px-2 py-1 rounded-full ${isActive ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'
-                  }`}>
+                <span
+                  className={`text-xs px-2 py-1 rounded-full ${isActive ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-600"
+                    }`}
+                >
                   {workout.exercises.length} exercises
                 </span>
               </div>
             </div>
             <motion.div
               whileHover={{ x: 3 }}
-              className={`rounded-full p-1 ${isActive ? 'bg-indigo-100' : 'bg-gray-100'}`}
+              className={`rounded-full p-1 ${isActive ? "bg-indigo-100" : "bg-gray-100"}`}
             >
-              <ChevronRight className={`h-5 w-5 ${isActive ? 'text-indigo-500' : 'text-gray-400'}`} />
+              <ChevronRight className={`h-5 w-5 ${isActive ? "text-indigo-500" : "text-gray-400"}`} />
             </motion.div>
           </div>
         </div>
       </motion.div>
     </motion.div>
-  );
-
-  // Sidebar tabs for navigation
-  const NavigationTab = ({ icon, label, active, onClick }: any) => (
-    <motion.div
-      whileHover={{ scale: 1.05 }}
-      onClick={onClick}
-      className={`flex items-center p-3 my-1 rounded-lg cursor-pointer transition-all ${active ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'
-        }`}
-    >
-      {React.cloneElement(icon, { className: `h-5 w-5 ${active ? 'text-indigo-600' : 'text-gray-500'}` })}
-      <span className={`ml-3 font-medium ${active ? 'text-indigo-700' : ''}`}>{label}</span>
-    </motion.div>
-  );
+  )
 
   // Notification component
-  const Notification = ({ message, type = 'success' }: { message: string, type?: 'success' | 'info' | 'warning' }) => (
+  const Notification = ({ message, type = "success" }: { message: string; type?: "success" | "info" | "warning" }) => (
     <motion.div
       initial={{ opacity: 0, y: -50 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -50 }}
-      className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${type === 'success' ? 'bg-green-100 border-l-4 border-green-500' :
-        type === 'info' ? 'bg-blue-100 border-l-4 border-blue-500' :
-          'bg-yellow-100 border-l-4 border-yellow-500'
+      className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${type === "success"
+        ? "bg-green-100 border-l-4 border-green-500"
+        : type === "info"
+          ? "bg-blue-100 border-l-4 border-blue-500"
+          : "bg-yellow-100 border-l-4 border-yellow-500"
         }`}
     >
       <div className="flex items-center">
-        {type === 'success' && <CheckCircle2 className="h-5 w-5 text-green-500 mr-2" />}
-        {type === 'info' && <Info className="h-5 w-5 text-blue-500 mr-2" />}
-        {type === 'warning' && <AlertCircle className="h-5 w-5 text-yellow-500 mr-2" />}
-        <p className={`text-sm ${type === 'success' ? 'text-green-700' :
-          type === 'info' ? 'text-blue-700' :
-            'text-yellow-700'
-          }`}>{message}</p>
+        {type === "success" && <CheckCircle2 className="h-5 w-5 text-green-500 mr-2" />}
+        {type === "info" && <Info className="h-5 w-5 text-blue-500 mr-2" />}
+        {type === "warning" && <AlertCircle className="h-5 w-5 text-yellow-500 mr-2" />}
+        <p
+          className={`text-sm ${type === "success" ? "text-green-700" : type === "info" ? "text-blue-700" : "text-yellow-700"
+            }`}
+        >
+          {message}
+        </p>
       </div>
     </motion.div>
-  );
+  )
 
   // Timeline component for milestones
   const Timeline = ({ milestones }: { milestones: any[] }) => (
@@ -309,26 +359,26 @@ const Dashboard = () => {
           <div className="absolute left-0 top-0 h-full">
             <div className="h-full w-0.5 bg-gray-200 absolute left-3 transform -translate-x-1/2"></div>
           </div>
-          <div className={`absolute left-3 top-0 w-6 h-6 rounded-full transform -translate-x-1/2 flex items-center justify-center ${milestone.completed ? 'bg-green-500' : 'bg-gray-300'
-            }`}>
-            {milestone.completed ?
-              <CheckCircle2 className="h-4 w-4 text-white" /> :
+          <div
+            className={`absolute left-3 top-0 w-6 h-6 rounded-full transform -translate-x-1/2 flex items-center justify-center ${milestone.completed ? "bg-green-500" : "bg-gray-300"
+              }`}
+          >
+            {milestone.completed ? (
+              <CheckCircle2 className="h-4 w-4 text-white" />
+            ) : (
               <Clock className="h-4 w-4 text-white" />
-            }
+            )}
           </div>
           <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
             <h4 className="font-medium text-gray-800">{milestone.title}</h4>
             <p className="text-sm text-gray-500 mt-1">
-              {milestone.completed ?
-                `Completed on ${milestone.date}` :
-                `Target: ${milestone.target}`
-              }
+              {milestone.completed ? `Completed on ${milestone.date}` : `Target: ${milestone.target}`}
             </p>
           </div>
         </motion.div>
       ))}
     </div>
-  );
+  )
 
   if (isLoading) {
     return (
@@ -342,12 +392,12 @@ const Dashboard = () => {
           <motion.div
             className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-500 rounded-full mx-auto"
             animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
           />
           <p className="mt-4 text-gray-600">Loading your fitness dashboard...</p>
         </motion.div>
       </div>
-    );
+    )
   }
 
   return (
@@ -357,153 +407,11 @@ const Dashboard = () => {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
     >
-      <AnimatePresence>
-        {showNotification && (
-          <Notification message="Water intake updated! Keep it up!" type="success" />
-        )}
-      </AnimatePresence>
+      {/* <AnimatePresence>
+        {showNotification && <Notification message="Water intake updated! Keep it up!" type="success" />}
+      </AnimatePresence> */}
 
-      <div className="flex flex-col md:flex-row h-screen">
-        {/* Sidebar Navigation */}
-        <motion.div
-          className="md:w-64 bg-white shadow-md md:min-h-screen p-4"
-          initial={{ x: -50, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="flex items-center justify-center mb-4 pt-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{
-                opacity: 1,
-                scale: [1, 1.05, 1], // Bounce effect: scale up and back
-                y: [0, -5, 0],      // Slight vertical bounce
-              }}
-              transition={{
-                duration: 0.9,        // Duration of one bounce cycle
-                ease: "easeInOut",   // Smooth easing
-                repeat: Infinity,    // Infinite loop
-                repeatType: "loop",  // Ensures continuous animation
-              }}
-              whileHover={{ scale: 1.1, rotate: 5 }} // Retain hover effect
-              className="bg-gradient-to-br from-red-600 to-orange-500 text-white h-12 w-12 rounded-full flex items-center justify-center text-2xl font-extrabold shadow-lg mr-3"
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                />
-              </svg>
-            </motion.div>
-            <div className="flex flex-col">
-              <h1 className="text-2xl font-extrabold bg-gradient-to-r from-indigo-600 to-teal-500 bg-clip-text text-transparent">
-                FitTrack
-              </h1>
-              <p className="text-xs text-gray-500 font-medium">Power Your Progress</p>
-            </div>
-          </div>
-
-          {/* <div className="mb-4">
-            <div className="flex items-center space-x-4 mb-4 p-2 bg-gray-50 rounded-lg">
-              <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center">
-                <User className="h-6 w-6 text-indigo-600" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-800">{session?.user?.name || userData?.data.user.name}</p>
-                <p className="text-xs text-gray-500">{userData?.data.user.fitnessGoal || 'General Fitness'}</p>
-              </div>
-            </div>
-          </div> */}
-
-          <div className="mb-2">
-            <p className="text-xs font-medium text-gray-400 mb-2 uppercase tracking-wider px-3">Dashboard</p>
-            <NavigationTab
-              icon={<Activity />}
-              label="Overview"
-              active={activeTab === 'overview'}
-              onClick={() => setActiveTab('overview')}
-            />
-            <NavigationTab
-              icon={<Dumbbell />}
-              label="Workouts"
-              active={activeTab === 'workouts'}
-              onClick={() => setActiveTab('workouts')}
-            />
-            <NavigationTab
-              icon={<BarChart4 />}
-              label="Progress"
-              active={activeTab === 'progress'}
-              onClick={() => setActiveTab('progress')}
-            />
-            <NavigationTab
-              icon={<Apple />}
-              label="Nutrition"
-              active={activeTab === 'nutrition'}
-              onClick={() => setActiveTab('nutrition')}
-            />
-          </div>
-
-          <div className="mb-2">
-            <p className="text-xs font-medium text-gray-400 mb-2 uppercase tracking-wider px-3">Tools</p>
-            <NavigationTab
-              icon={<Target />}
-              label="Goals"
-              active={activeTab === 'goals'}
-              onClick={() => setActiveTab('goals')}
-            />
-            <NavigationTab
-              icon={<Calendar />}
-              label="Calendar"
-              active={activeTab === 'calendar'}
-              onClick={() => setActiveTab('calendar')}
-            />
-            <NavigationTab
-              icon={<Settings />}
-              label="Settings"
-              active={activeTab === 'settings'}
-              onClick={() => setActiveTab('settings')}
-            />
-          </div>
-
-          {/* <div className="mt-auto pt-6">
-            <Card className="bg-indigo-50 border-none">
-              <CardContent className="p-4">
-                <div className="flex items-center mb-2">
-                  <Droplets className="text-blue-500 h-5 w-5 mr-2" />
-                  <h3 className="font-medium text-gray-800">Water Tracker</h3>
-                </div>
-                <div className="w-full bg-white rounded-full h-3 mb-3">
-                  <motion.div 
-                    className="bg-blue-500 h-3 rounded-full"
-                    style={{ width: `${(waterIntake / 3) * 100}%` }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(waterIntake / 3) * 100}%` }}
-                    transition={{ duration: 0.5 }}
-                  />
-                </div>
-                <div className="flex justify-between text-sm text-gray-600 mb-3">
-                  <span>{waterIntake.toFixed(2)}L</span>
-                  <span>Goal: 3L</span>
-                </div>
-                <button 
-                  onClick={addWater}
-                  className="w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center"
-                >
-                  <PlusCircle className="h-4 w-4 mr-1" /> Add 250ml
-                </button>
-              </CardContent>
-            </Card>
-          </div> */}
-        </motion.div>
-
+      <div className="flex flex-col h-screen">
         {/* Main Content */}
         <div className="flex-1 p-6 overflow-y-auto">
           {/* Welcome Section with subtle gradient */}
@@ -539,7 +447,9 @@ const Dashboard = () => {
               >
                 <div className="flex items-center">
                   <Calendar className="h-5 w-5 mr-2" />
-                  <p className="font-medium">Today's workout: <span className="font-bold">{todaysWorkout.name}</span></p>
+                  <p className="font-medium">
+                    Today's workout: <span className="font-bold">{todaysWorkout.name}</span>
+                  </p>
                 </div>
                 <div className="mt-2 flex space-x-2">
                   <motion.button
@@ -547,8 +457,7 @@ const Dashboard = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => {
-                      setActiveTab('workouts');
-                      setSelectedDay(todaysWorkout.day);
+                      setSelectedDay(todaysWorkout.day)
                     }}
                   >
                     View Details
@@ -567,7 +476,7 @@ const Dashboard = () => {
 
           {/* Content based on active tab */}
           <AnimatePresence mode="wait">
-            {activeTab === 'overview' && (
+            {activeTab === "overview" && (
               <motion.div
                 key="overview"
                 initial={{ opacity: 0 }}
@@ -626,50 +535,7 @@ const Dashboard = () => {
                 {/* Quick Info Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                   {/* Upcoming Workouts */}
-                  <motion.div
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ duration: 0.3, delay: 0.3 }}
-                  >
-                    <Card className="h-full shadow-md hover:shadow-lg transition-all">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-lg flex items-center">
-                          <Calendar className="h-5 w-5 mr-2 text-indigo-600" />
-                          Upcoming Workouts
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        {mockUpcomingWorkouts.map((workout, index) => (
-                          <motion.div
-                            key={workout.id}
-                            initial={{ x: -20, opacity: 0 }}
-                            animate={{ x: 0, opacity: 1 }}
-                            transition={{ delay: index * 0.1 + 0.3 }}
-                            className="mb-3 last:mb-0 bg-gray-50 p-3 rounded-lg"
-                          >
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <h4 className="font-medium text-gray-800">{workout.title}</h4>
-                                <div className="flex items-center text-sm text-gray-600 mt-1">
-                                  <Clock className="h-4 w-4 mr-1" />
-                                  {workout.time} • {workout.duration}
-                                </div>
-                              </div>
-                              <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">
-                                {workout.type}
-                              </span>
-                            </div>
-                          </motion.div>
-                        ))}
-                      </CardContent>
-                      <CardFooter className="pt-0">
-                        <button className="text-sm text-indigo-600 hover:text-indigo-800 transition-colors flex items-center">
-                          View all scheduled workouts
-                          <ChevronRight className="h-4 w-4 ml-1" />
-                        </button>
-                      </CardFooter>
-                    </Card>
-                  </motion.div>
+                  <WorkoutScheduler />
 
                   {/* Weekly Progress */}
                   <motion.div
@@ -697,7 +563,7 @@ const Dashboard = () => {
                                 dataKey="weight"
                                 stroke="#2e7d32"
                                 strokeWidth={2}
-                                dot={{ r: 4, fill: '#2e7d32' }}
+                                dot={{ r: 4, fill: "#2e7d32" }}
                                 activeDot={{ r: 6 }}
                               />
                             </LineChart>
@@ -727,25 +593,28 @@ const Dashboard = () => {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        {mockMilestones.filter(m => m.completed).slice(0, 2).map((milestone, index) => (
-                          <motion.div
-                            key={milestone.id}
-                            initial={{ x: -20, opacity: 0 }}
-                            animate={{ x: 0, opacity: 1 }}
-                            transition={{ delay: index * 0.1 + 0.3 }}
-                            className="mb-3 last:mb-0 bg-amber-50 p-3 rounded-lg"
-                          >
-                            <div className="flex items-center">
-                              <div className="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center mr-3">
-                                <CheckCircle2 className="h-5 w-5 text-amber-600" />
+                        {mockMilestones
+                          .filter((m) => m.completed)
+                          .slice(0, 2)
+                          .map((milestone, index) => (
+                            <motion.div
+                              key={milestone.id}
+                              initial={{ x: -20, opacity: 0 }}
+                              animate={{ x: 0, opacity: 1 }}
+                              transition={{ delay: index * 0.1 + 0.3 }}
+                              className="mb-3 last:mb-0 bg-amber-50 p-3 rounded-lg"
+                            >
+                              <div className="flex items-center">
+                                <div className="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center mr-3">
+                                  <CheckCircle2 className="h-5 w-5 text-amber-600" />
+                                </div>
+                                <div>
+                                  <h4 className="font-medium text-gray-800">{milestone.title}</h4>
+                                  <p className="text-xs text-gray-500 mt-1">Completed on {milestone.date}</p>
+                                </div>
                               </div>
-                              <div>
-                                <h4 className="font-medium text-gray-800">{milestone.title}</h4>
-                                <p className="text-xs text-gray-500 mt-1">Completed on {milestone.date}</p>
-                              </div>
-                            </div>
-                          </motion.div>
-                        ))}
+                            </motion.div>
+                          ))}
                       </CardContent>
                       <CardFooter className="pt-0">
                         <button className="text-sm text-amber-600 hover:text-amber-800 transition-colors flex items-center">
@@ -821,7 +690,13 @@ const Dashboard = () => {
                               <XAxis dataKey="day" />
                               <YAxis />
                               <Tooltip />
-                              <Area type="monotone" dataKey="amount" stroke="#0288d1" fill="#0288d1" fillOpacity={0.3} />
+                              <Area
+                                type="monotone"
+                                dataKey="amount"
+                                stroke="#0288d1"
+                                fill="#0288d1"
+                                fillOpacity={0.3}
+                              />
                             </AreaChart>
                           </ResponsiveContainer>
                         </div>
@@ -832,7 +707,7 @@ const Dashboard = () => {
               </motion.div>
             )}
 
-            {activeTab === 'workouts' && (
+            {activeTab === "workouts" && (
               <motion.div
                 key="workouts"
                 initial={{ opacity: 0 }}
@@ -869,11 +744,9 @@ const Dashboard = () => {
                         <div className="flex justify-between items-center">
                           <div>
                             <CardTitle>
-                              {selectedDay && userData?.data.workoutPlan.find(w => w.day === selectedDay)?.name}
+                              {selectedDay && userData?.data.workoutPlan.find((w) => w.day === selectedDay)?.name}
                             </CardTitle>
-                            <CardDescription>
-                              {selectedDay && `${selectedDay}'s workout plan`}
-                            </CardDescription>
+                            <CardDescription>{selectedDay && `${selectedDay}'s workout plan`}</CardDescription>
                           </div>
                           <motion.button
                             whileHover={{ scale: 1.05 }}
@@ -888,13 +761,13 @@ const Dashboard = () => {
                         {selectedDay && (
                           <>
                             <div className="bg-indigo-50 p-4 rounded-lg mb-6 italic text-gray-700">
-                              "{userData?.data.workoutPlan.find(w => w.day === selectedDay)?.quote}"
+                              "{userData?.data.workoutPlan.find((w) => w.day === selectedDay)?.quote}"
                             </div>
 
                             <div className="space-y-4">
                               {userData?.data.workoutPlan
-                                .find(w => w.day === selectedDay)?.exercises
-                                .map((exercise, index) => (
+                                .find((w) => w.day === selectedDay)
+                                ?.exercises.map((exercise, index) => (
                                   <motion.div
                                     key={`${exercise.name}-${index}`}
                                     initial={{ opacity: 0, y: 10 }}
@@ -918,14 +791,16 @@ const Dashboard = () => {
                                           </p>
                                         </div>
                                       </div>
-                                      <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${expandedExercise === index ? 'transform rotate-180' : ''
-                                        }`} />
+                                      <ChevronDown
+                                        className={`h-5 w-5 text-gray-400 transition-transform ${expandedExercise === index ? "transform rotate-180" : ""
+                                          }`}
+                                      />
                                     </div>
 
                                     {expandedExercise === index && (
                                       <motion.div
                                         initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: 'auto', opacity: 1 }}
+                                        animate={{ height: "auto", opacity: 1 }}
                                         exit={{ height: 0, opacity: 0 }}
                                         className="px-4 pb-4"
                                       >
@@ -965,7 +840,7 @@ const Dashboard = () => {
               </motion.div>
             )}
 
-            {activeTab === 'progress' && (
+            {activeTab === "progress" && (
               <motion.div
                 key="progress"
                 initial={{ opacity: 0 }}
@@ -989,14 +864,14 @@ const Dashboard = () => {
                           <LineChart data={mockProgressData}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                             <XAxis dataKey="date" />
-                            <YAxis domain={['auto', 'auto']} />
+                            <YAxis domain={["auto", "auto"]} />
                             <Tooltip />
                             <Line
                               type="monotone"
                               dataKey="weight"
                               stroke="#2e7d32"
                               strokeWidth={2}
-                              dot={{ r: 4, fill: '#2e7d32' }}
+                              dot={{ r: 4, fill: "#2e7d32" }}
                               activeDot={{ r: 6 }}
                             />
                           </LineChart>
@@ -1022,13 +897,7 @@ const Dashboard = () => {
                             <XAxis dataKey="date" />
                             <YAxis />
                             <Tooltip />
-                            <Area
-                              type="monotone"
-                              dataKey="steps"
-                              stroke="#0288d1"
-                              fill="#0288d1"
-                              fillOpacity={0.3}
-                            />
+                            <Area type="monotone" dataKey="steps" stroke="#0288d1" fill="#0288d1" fillOpacity={0.3} />
                           </AreaChart>
                         </ResponsiveContainer>
                       </div>
@@ -1082,7 +951,7 @@ const Dashboard = () => {
               </motion.div>
             )}
 
-            {activeTab === 'nutrition' && (
+            {activeTab === "nutrition" && (
               <motion.div
                 key="nutrition"
                 initial={{ opacity: 0 }}
@@ -1127,35 +996,14 @@ const Dashboard = () => {
                   </Card>
 
                   {/* Calorie Tracking */}
-                  <Card className="shadow-md">
-                    <CardHeader>
-                      <CardTitle className="flex items-center">
-                        <Flame className="h-5 w-5 mr-2 text-orange-600" />
-                        Calorie Tracking
-                      </CardTitle>
-                      <CardDescription>Weekly calorie intake</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={mockProgressData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                            <XAxis dataKey="date" />
-                            <YAxis />
-                            <Tooltip />
-                            <Line
-                              type="monotone"
-                              dataKey="calories"
-                              stroke="#ed6c02"
-                              strokeWidth={2}
-                              dot={{ r: 4, fill: '#ed6c02' }}
-                              activeDot={{ r: 6 }}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <div>
+                    <FoodAnalyzerGemini onCalorieUpdate={handleCalorieUpdate} />
+                  </div>
+
+                  {/* Calorie tracking card - add ref to access methods */}
+                  <div>
+                    {/* <CalorieCard ref={calorieTrackingRef} /> */}
+                  </div>
                 </div>
 
                 {/* Meal Plan Recommendations */}
@@ -1167,22 +1015,17 @@ const Dashboard = () => {
                     </CardTitle>
                     <CardDescription>Based on your fitness goals</CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-center text-gray-600 py-8">
-                      Meal plan recommendations will be available soon!
-                    </p>
-                  </CardContent>
+                  {/* <CardContent>
+                    <p className="text-center text-gray-600 py-8">Meal plan recommendations will be available soon!</p>
+                  </CardContent> */}
                   <CardFooter className="flex justify-center">
-                    <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center">
-                      <PlusCircle className="h-4 w-4 mr-2" />
-                      Request Meal Plan
-                    </button>
+                    <MealSuggestions />
                   </CardFooter>
                 </Card>
               </motion.div>
             )}
 
-            {activeTab === 'goals' && (
+            {activeTab === "goals" && (
               <motion.div
                 key="goals"
                 initial={{ opacity: 0 }}
@@ -1214,7 +1057,8 @@ const Dashboard = () => {
         </div>
       </div>
     </motion.div>
-  );
-};
+  )
+}
 
-export default Dashboard;
+export default Dashboard
+
